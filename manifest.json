@@ -1,0 +1,12 @@
+{
+  "display_name": "纯文本群聊角色扮演",
+  "loading_order": 50,
+  "requires": [],
+  "optional": [],
+  "dependencies": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "CaoJun",
+  "version": "0.1.0",
+  "minimum_client_version": "1.19.0"
+}
