@@ -59,11 +59,23 @@ export function visibleMessages(messages, recipient) {
 }
 
 export function forbiddenInRequest(messages, recipient, channel, mode, requestBody) {
+    const publicForRequest = mode === '调度' && channel === 'group'
+        ? messages.filter(message => message.channel === 'group')
+        : visibleMessages(messages, recipient);
+    const fields = [requestBody];
+    try {
+        const visit = value => {
+            if (typeof value === 'string') fields.push(value);
+            else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+        };
+        visit(JSON.parse(requestBody));
+    } catch { /* Non-JSON request bodies still get the raw check. */ }
     return messages.find(message => message.text &&
         (mode === '调度' && channel === 'group'
             ? message.channel !== 'group'
             : !message.audience.includes(recipient)) &&
-        requestBody.includes(message.text));
+        !publicForRequest.some(visible => visible.text.includes(message.text)) &&
+        fields.some(field => field.includes(message.text)));
 }
 
 export function sameTurn(ticket, currentEpoch, binding, session) {
@@ -76,6 +88,7 @@ export async function saveGroupSnapshot(fetcher, headers, chatId, chat) {
         method: 'POST', headers, body: JSON.stringify({ id: chatId, chat }),
     });
     if (!response.ok) throw new Error(`群聊保存失败：HTTP ${response.status}`);
+    if (!(await response.json()).ok) throw new Error('群聊保存失败：响应未确认');
 }
 
 export function knownState(session, recipient) {
@@ -121,7 +134,11 @@ export function parseJson(text) {
 }
 
 export function validatePlan(plan, session) {
-    if (!plan || !Array.isArray(plan.speakers) || plan.speakers.length > 3) throw new Error('发言计划无效');
+    if (!plan || Object.keys(plan).some(key => !['intent', 'target', 'clarify', 'speakers', 'playerFacts'].includes(key)) ||
+        typeof plan.intent !== 'string' || plan.intent.length > 100 ||
+        (plan.target !== null && plan.target !== undefined && !audience(session).includes(plan.target)) ||
+        (plan.clarify !== undefined && typeof plan.clarify !== 'boolean') ||
+        !Array.isArray(plan.speakers) || plan.speakers.length > 3) throw new Error('发言计划无效');
     if (plan.playerFacts !== undefined && (!Array.isArray(plan.playerFacts) || plan.playerFacts.length > 5 ||
         plan.playerFacts.some(fact => !fact || typeof fact.value !== 'string' || typeof fact.quote !== 'string' ||
             fact.value.length > 100 || fact.quote.length > 250))) throw new Error('玩家资料提取无效');
@@ -133,7 +150,8 @@ export function validatePlan(plan, session) {
 }
 
 export function validateReply(reply, session, speaker) {
-    if (!reply || !['reply', 'silent'].includes(reply.action) || !Array.isArray(reply.changes)) {
+    if (!reply || Object.keys(reply).some(key => !['action', 'text', 'changes'].includes(key)) ||
+        !['reply', 'silent'].includes(reply.action) || typeof reply.text !== 'string' || !Array.isArray(reply.changes)) {
         throw new Error('角色结果结构无效');
     }
     const keys = new Set(['kind', 'subject', 'value', 'sourceId', 'quote', 'confidence']);
