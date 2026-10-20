@@ -66,6 +66,7 @@ test('非法计划、坏 JSON 和无证据状态变化均被拒绝', () => {
     assert.throws(() => parseJson('```json\n{}\n```'));
     const pending = beginRound(session, [], '你好');
     assert.throws(() => validateReply({ action: 'reply', text: '你好', changes: [], hidden: 'x' }, pending.session, 'A'));
+    assert.throws(() => validateReply({ action: 'reply', text: '<img src=x>', changes: [] }, pending.session, 'A'), /HTML/);
     const source = makeMessage(session, 'r', 'A', '今天天气不错');
     const state = applyChanges(session.state, [{
         kind: 'body', subject: 'A', value: '受伤', sourceId: source.id,
