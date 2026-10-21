@@ -1,6 +1,6 @@
 # 纯文本群聊角色扮演
 
-适配此工作区的 SillyTavern 1.19.0。扩展使用现有群组、角色卡、玩家昵称和模型连接；不安装其他扩展依赖。源码由外层 Git 仓库管理，SillyTavern 自身仓库保持原样。
+适配 SillyTavern 1.19.0。扩展使用现有群组、角色卡、玩家昵称和模型连接；不安装其他扩展依赖。源码由本仓库管理，SillyTavern 自身仓库保持原样。
 
 ## 安装与启动
 
@@ -28,7 +28,7 @@ Copy-Item -LiteralPath .\extension\manifest.json, .\extension\core.js, .\extensi
 
 ## 开发检查
 
-在外层仓库执行 `node --test extension/test/core.test.js` 和 `node --check extension/index.js`。人工场景使用 `test-data/neutral-scenario.md`，结果记录在 `ACCEPTANCE.md`。
+在仓库根目录执行 `node --test extension/test/core.test.js extension/test/lore.test.js` 和 `node --check extension/index.js`。人工场景使用 `test-data/neutral-scenario.md`，结果记录在 `ACCEPTANCE.md`。
 
 ## 已知限制
 
