@@ -24,3 +24,7 @@
 | T18 存档迁移 | 通过（模拟） | 导出 9 条消息、4 轮；导入生成不同会话 ID 的新存档，时间及 2 条私聊记录一致。缺失角色提示有代码校验，未操作验证。 |
 
 自动检查：`node --test extension/test/core.test.js`（6/6 通过），`node --check extension/index.js`。正式验收仍需配置可用的真实模型连接，重点复核 T05、T10、T12、T15、T17 和模型表现。
+
+## 2026-10-21：世界书与提示词面板接入
+
+扩展现从当前选中的全局／聊天世界书和当前发言角色绑定世界书选取条目，并读取当前启用的 Text Completion System Prompt 或 Chat Completion Prompt Manager 文本规则。按角色可见消息扫描，其他角色绑定世界书不进入该角色请求；玩家身份绑定世界书因可能包含未透露资料而不注入。自动检查 `node --test extension/test/core.test.js extension/test/lore.test.js` 为 8/8 通过，浏览器打开 SillyTavern 后扩展入口显示且无控制台错误。当前没有可用的真实模型连接，因此世界书与规则在实际模型请求中的表现仍待实机审计。

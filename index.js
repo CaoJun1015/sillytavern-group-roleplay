@@ -1,8 +1,12 @@
 import { createNewGroupChat } from '../../../group-chats.js';
+import { loadWorldInfo, selected_world_info, world_info, world_info_budget, world_info_depth } from '../../../world-info.js';
+import { power_user } from '../../../power-user.js';
+import { promptManager } from '../../../openai.js';
 import {
     PLAYER, createSession, audience, beginRound, contextFor, parseJson, validatePlan,
     validateReply, completeRound, rewind, recover, forbiddenInRequest, sameTurn, saveGroupSnapshot,
 } from './core.js';
+import { bookNamesFor, visibleMessagesFor, selectLore, panelRules, safeSettingsText } from './lore.js';
 
 if (!document.body) await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
 
@@ -245,17 +249,42 @@ function plannerPrompt() {
     ];
 }
 
-function characterPrompt(member, draft) {
-    const character = context().characters.find(item => item.avatar === member);
+async function characterPrompt(member, draft) {
+    const ctx = context();
+    const character = ctx.characters.find(item => item.avatar === member);
     if (!character) throw new Error(`角色已缺失：${member}`);
     const data = character.data || character;
     const card = {
         name: character.name, description: data.description || '', personality: data.personality || '',
         scenario: data.scenario || '', example: data.mes_example || '',
     };
-    const budget = Math.min(12000, Math.max(3000, Math.floor(Number(context().maxContext || 6000) * 2)));
+    const budget = Math.min(12000, Math.max(3000, Math.floor(Number(ctx.maxContext || 6000) * 2)));
+    const group = ctx.groups.find(item => item.id === session.groupId);
+    const names = bookNamesFor({
+        global: selected_world_info, chat: ctx.chatMetadata.world_info,
+        primary: data.extensions?.world,
+        extra: world_info.charLore?.find(item => item.name === member.replace(/\.[^/.]+$/, ''))?.extraBooks || [],
+    });
+    const books = await Promise.all(names.map(async name => {
+        const data = await loadWorldInfo(name);
+        if (!data?.entries) throw new Error(`世界书无法读取：${name}`);
+        return { name, entries: data.entries };
+    }));
+    const visible = visibleMessagesFor(draft, member);
+    const lore = selectLore(books, visible, {
+        scanDepth: world_info_depth,
+        maxChars: Math.min(4000, Math.max(800, Math.floor(Number(ctx.maxContext || 6000) * 2 * world_info_budget / 100))),
+    });
+    if (lore.skipped.length) addAudit(`世界书跳过 ${lore.skipped.length} 条：${lore.skipped.slice(0, 3).join('、')}`);
+    const variables = { character: character.name, player: ctx.name1, group: group?.name || '' };
+    const rules = panelRules(ctx.mainApi, power_user.sysprompt, promptManager,
+        power_user.prefer_character_prompt ? data : null)
+        .map(rule => safeSettingsText(rule, variables));
+    const loreText = lore.selected.map(entry => `[${entry.book}] ${safeSettingsText(entry.content, variables)}`);
+    if (rules.join('').length > 4000) throw new Error('提示词面板规则超过 4000 字，请精简后重试');
+    addAudit(`角色配置：${character.name}，规则 ${rules.length} 条，世界书 ${loreText.length} 条`);
     return [
-        { role: 'system', content: `你只扮演 ${character.name}。保留角色卡身份和性格。仅写该角色在当前频道说出的纯文本；可以拒绝、沉默、反对、接话。不能代写玩家言行或内心。只能使用下方可见上下文。输出单个 JSON：{"action":"reply"或"silent","text":"发言文本，沉默时为空","changes":[]}。变更格式：{"kind":"player_fact|npc_fact|relation|body","subject":"角色ID或player","value":"简短确定内容","sourceId":"消息ID或self","quote":"来源原文中的精确短句","confidence":"explicit或uncertain"}。只提出明确表达的变化；没有依据时用空数组。不要输出推理过程。\n角色卡：${JSON.stringify(card)}` },
+        { role: 'system', content: `已启用的 SillyTavern 规则：\n${rules.join('\n')}\n已激活的世界书条目：\n${loreText.join('\n')}\n你只扮演 ${character.name}。保留角色卡身份和性格。仅写该角色在当前频道说出的纯文本；可以拒绝、沉默、反对、接话。不能代写玩家言行或内心。只能使用下方可见上下文。输出单个 JSON：{"action":"reply"或"silent","text":"发言文本，沉默时为空","changes":[]}。变更格式：{"kind":"player_fact|npc_fact|relation|body","subject":"角色ID或player","value":"简短确定内容","sourceId":"消息ID或self","quote":"来源原文中的精确短句","confidence":"explicit或uncertain"}。只提出明确表达的变化；没有依据时用空数组。不要输出推理过程。\n角色卡：${JSON.stringify(card)}` },
         { role: 'user', content: JSON.stringify({ channel: session.pending.channel, context: contextFor(session, draft, member, budget), mentioned: session.pending.target === member }) },
     ];
 }
@@ -291,7 +320,7 @@ async function runPending() {
             let message;
             repair = '';
             for (let attempt = 0; attempt < 2; attempt++) {
-                const prompt = characterPrompt(speaker, draft);
+                const prompt = await characterPrompt(speaker, draft);
                 if (repair) prompt.push({ role: 'user', content: `上次结果不合格：${repair}。只输出符合格式的 JSON。` });
                 try {
                     reply = await askModel(prompt, speaker, '角色', ticket);
