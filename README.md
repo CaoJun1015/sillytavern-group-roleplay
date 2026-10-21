@@ -1,10 +1,25 @@
 # 纯文本群聊角色扮演
 
-适配 SillyTavern 1.19.0。扩展使用现有群组、角色卡、玩家昵称和模型连接；不安装其他扩展依赖。源码由本仓库管理，SillyTavern 自身仓库保持原样。
+一个适配 SillyTavern 1.19.0 的实验性纯文本群聊扩展。玩家从现有群组新建专用存档，与多个 NPC 群聊、点名或一对一私聊。扩展统一安排发言、按角色筛选上下文，并管理状态、保存、重试和回退。它使用现有角色卡、世界书、提示词设置和模型连接，不依赖其他扩展。
+
+> **预览版：** 核心自动检查和模拟后端接入测试已通过；真实模型的对话表现、请求隔离及完整游玩流程仍待验收。详见 [验收记录](ACCEPTANCE.md)。
+
+## 主要功能
+
+- 每轮安排 0–3 名 NPC 依次回应；允许沉默、拒绝及 NPC 间接话。
+- 群聊和一对一私聊保存在同一会话中，并按发言角色筛选可见消息与世界书。
+- 记录游戏时间和有原文证据的状态变化；支持停止、继续、整轮重试、回退及存档导出／导入。
+- 使用新建的专用群聊存档，不改写已有原生聊天。
 
 ## 安装与启动
 
-将本目录复制到 `SillyTavern/public/scripts/extensions/third-party/plain-group-roleplay`，重启或刷新 SillyTavern。Windows PowerShell 开发安装示例（在外层仓库执行）：
+在 SillyTavern 打开「扩展程序」→「安装扩展」，粘贴仓库 URL：
+
+```text
+https://github.com/CaoJun1015/sillytavern-group-roleplay
+```
+
+也可以将仓库根目录中的 `manifest.json`、`core.js`、`lore.js`、`index.js` 和 `style.css` 复制到 `SillyTavern/public/scripts/extensions/third-party/plain-group-roleplay`，然后重启或刷新 SillyTavern。在本地开发工作区，源码位于外层仓库的 `extension/`，复制示例：
 
 ```powershell
 $target = '.\SillyTavern\public\scripts\extensions\third-party\plain-group-roleplay'
@@ -28,7 +43,7 @@ Copy-Item -LiteralPath .\extension\manifest.json, .\extension\core.js, .\extensi
 
 ## 开发检查
 
-在仓库根目录执行 `node --test extension/test/core.test.js extension/test/lore.test.js` 和 `node --check extension/index.js`。人工场景使用 `test-data/neutral-scenario.md`，结果记录在 `ACCEPTANCE.md`。
+在 GitHub 仓库根目录执行 `node --test test/core.test.js test/lore.test.js` 和 `node --check index.js`；在本地外层开发仓库给这些路径加上 `extension/` 前缀。人工场景使用 `test-data/neutral-scenario.md`，结果记录在 `ACCEPTANCE.md`。
 
 ## 已知限制
 

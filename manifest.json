@@ -6,7 +6,8 @@
   "dependencies": [],
   "js": "index.js",
   "css": "style.css",
-  "author": "Local project",
+  "author": "CaoJun1015",
   "version": "0.1.0",
+  "homePage": "https://github.com/CaoJun1015/sillytavern-group-roleplay",
   "minimum_client_version": "1.19.0"
 }
